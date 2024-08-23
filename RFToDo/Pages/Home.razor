@@ -1,0 +1,455 @@
+﻿@page "/"
+
+@using RFToDo.Components
+@using RFToDo.Models
+@using RFToDo.Services
+
+@inject MetaService MetaService
+@inject TareaService TareaService
+
+<div class="row mt-1">
+    <div class="col-12 border border-1 rounded bg-white p-2">
+        Control de metas
+    </div>
+</div>
+
+<PageTitle>RFToDo</PageTitle>
+
+<div class="row">
+    <div class="col-4">
+        <div class="row mt-3 border border-1 rounded bg-white">
+            <div class="col-12 m-2 d-flex justify-content-start">
+                <Button Color="ButtonColor.Primary" @onclick="OnShowModalClick"> 
+                    <i class="bi bi-plus-lg"></i>
+                    Nueva meta    
+                </Button>
+            </div>
+        </div>
+        @foreach (var meta in metas)
+        {
+            <div class="row mt-3 border border-1 rounded bg-white">
+                <div class="col-12">
+                    <div class="row">
+                        <div class="col-9 d-flex justify-content-start align-items-center">
+                            <span><strong>@meta?.Nombre</strong></span>
+                        </div>
+                        <div class="col-3 d-flex justify-content-end align-items-center">
+                            <Button Color="ButtonColor.Link" @onclick="() => VerTareas(meta ?? new ())">
+                                <i class="bi bi-search"></i>
+                            </Button>
+                            &nbsp;
+                            &nbsp;
+                            <Button Color="ButtonColor.Link" @onclick="() => EditarMeta(meta ?? new ())">
+                                <i class="bi bi-pencil"></i>    
+                            </Button>
+                            &nbsp;
+                            &nbsp;
+                            <Button Color="ButtonColor.Link" @onclick="() => EliminarMeta((meta ?? new ()))">
+                                <i class="bi bi-trash"></i>
+                            </Button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <span>
+                                Fecha creada: @meta?.FechaCreacion.ToString("dd/MM/yyyy")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row pt-2">
+                        <div class="col-12 d-flex justify-content-start align-items-center">
+                            <small>Total de tareas: @meta.TotalTareas</small>
+                        </div>
+                        <div class="col-12 d-flex justify-content-start align-items-center">
+                            <strong>Tareas completadas</strong>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <Progress Class="mb-3">
+                                <ProgressBar Width="(Convert.ToDouble(meta?.Porcentaje))" Label="@($"{meta?.Porcentaje}%")" />
+                            </Progress>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="col-8 mt-3 pe-0">
+        <div class="card ml-0">
+            <div class="card-header" style="background-color: #336666; color: #ffffff">
+                <strong>@tituloMeta</strong>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-12">
+                        <Button Color="ButtonColor.Primary" @onclick="AbrirGuardarTarea">
+                            <i class="bi bi-plus-lg"></i>
+                            Agregar tarea
+                        </Button>
+                        &nbsp;
+                        @if (mostrarBotonCompletar)
+                        {
+                            <Button Color="ButtonColor.Primary" @onclick="CompletarTareasSeleccionadas">
+                                <i class="bi bi-check-circle"></i>
+                                Completar Tarea
+                            </Button>
+                        }
+                        &nbsp;
+                        @if (mostrarBotonEditar)
+                        {
+                            <Button Color="ButtonColor.Primary" @onclick="EditarTareasSeleccionadas">
+                                <i class="bi bi-pencil"></i>
+                                Editar
+                            </Button>
+                        }
+                        &nbsp;
+                        @if (mostrarBotonEliminar)
+                        {
+                            <Button Color="ButtonColor.Primary" @onclick="EliminarTareasSeleccionadas">
+                                <i class="bi bi-trash"></i>
+                                Eliminar
+                            </Button>
+                        }
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <Grid @ref="grid"
+                              TItem="Tarea"
+                              Class="table table-hover table-bordered table-striped"
+                              Data="tareas"
+                              AllowPaging="true"
+                              PageSize="5"
+                              AllowFiltering="true"
+                              Responsive="true">
+                                
+                            <GridColumns>
+                                <GridColumn TItem="Tarea" HeaderText="" PropertyName="">
+                                    <input type="checkbox" @onchange="@(e => OnCheckboxChanged(context, e))"/>
+                                </GridColumn>
+                                <GridColumn TItem="Tarea" HeaderText="Tarea" PropertyName="Nombre">
+                                    @context.Nombre
+                                </GridColumn>
+                                <GridColumn TItem="Tarea" HeaderText="Fecha" PropertyName="Fecha">
+                                    @context.FechaCreacion.ToString("dd/MM/yyyy")
+                                </GridColumn>
+                                <GridColumn TItem="Tarea" HeaderText="Estado" PropertyName="Estado">
+                                    @(context.Estado == 1 ? "Abierta" : "Cerrada")
+                                </GridColumn>
+                            </GridColumns>
+                        </Grid>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<Modal @ref="modalGuardarEditar" Title="@(editarMeta ? "Editar meta" : "Agregar nueva meta")">
+    <BodyTemplate>
+        <div class="row">
+            <div class="col-12">
+                <input class="form-control" type="text" placeholder="Nombre" @bind-value="nombreMeta"/> 
+            </div>
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="OnHideModalClick">Cancelar</Button>
+        <Button Color="ButtonColor.Primary" @onclick="GuardarMeta">Guardar</Button>
+    </FooterTemplate>
+</Modal>
+
+<Modal @ref="modalGuardarEditarTarea" Title="@(editarTarea ? "Editar tarea" : "Agregar nueva tarea")">
+    <BodyTemplate>
+        <div class="row">
+            <div class="col-12">
+                <input class="form-control" type="text" placeholder="Nombre" @bind-value="nombreTarea" />
+            </div>
+        </div>
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="CerrarGuardarTarea">Cancelar</Button>
+        <Button Color="ButtonColor.Primary" @onclick="() => GuardarTarea(idTareaActual)">Guardar</Button>
+    </FooterTemplate>
+</Modal>
+
+<ConfirmDialog @ref="dialog" />
+
+@code
+{
+    private string? nombreMeta { get; set; }
+    private bool editarMeta { get; set; } = false;
+    private int idMeta { get; set; }
+    private string? mensajeError { get; set; }
+    private string? mensajeInfo { get; set; }
+    private bool eliminarMeta { get; set; } = false;
+    private string? tituloMeta { get; set; }
+
+    private int idTareaActual { get; set; }
+    private string? nombreTarea { get; set; }
+    private bool editarTarea { get; set; } = false;
+
+    private bool mostrarBotonEditar { get; set; } = false;
+    private bool mostrarBotonCompletar { get; set; } = false;
+    private bool mostrarBotonEliminar { get; set; } = false;
+
+    private Modal? modalGuardarEditar;
+    private Modal? modalGuardarEditarTarea;
+    private ConfirmDialog? dialog;
+    BlazorBootstrap.Grid<Tarea> grid = default!;
+    private IEnumerable<Tarea> tareas = [];
+    private List<Meta> metas = [];
+
+    ConfirmDialogOptions options = new ConfirmDialogOptions
+    {
+        YesButtonText = "Aceptar",
+        YesButtonColor = ButtonColor.Primary,
+        NoButtonText = "Cancelar",
+        NoButtonColor = ButtonColor.Light
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        metas = await MetaService.ObtenerMetas();
+    }
+
+    #region Modales
+    private async Task OnShowModalClick() => await (modalGuardarEditar ?? new()).ShowAsync();
+    private async Task OnHideModalClick() => await (modalGuardarEditar ?? new()).HideAsync();
+
+    private async Task AbrirGuardarTarea() => await (modalGuardarEditarTarea ?? new()).ShowAsync();
+    private async Task CerrarGuardarTarea() => await (modalGuardarEditarTarea ?? new()).HideAsync();
+    #endregion
+
+    #region Metas
+    private async Task GuardarMeta()
+    {
+        if (editarMeta)
+        {
+            HttpResponseMessage response = await MetaService.EditarMeta(new()
+            {
+                Id = idMeta,
+                Nombre = nombreMeta,
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                await OnHideModalClick();
+                await OnInitializedAsync();
+            }
+            else
+            {
+                await (dialog ?? new()).ShowAsync(
+                    title: "Error",
+                    message1: $"La meta {nombreMeta} ya existe",
+                    options
+                );
+            }
+        }
+        else
+        {
+            HttpResponseMessage response = await MetaService.GuardarMeta(new()
+            {
+                Nombre = nombreMeta,
+                FechaCreacion = DateTime.Now
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                await OnHideModalClick();
+                await OnInitializedAsync();
+            }
+            else
+            {
+                await (dialog ?? new()).ShowAsync(
+                    title: "Error",
+                    message1: $"La Meta {nombreMeta} ya existe",
+                    options
+                );
+            }
+        }
+    }
+
+    private async Task EditarMeta(Meta meta)
+    {
+        editarMeta = true;
+        await OnShowModalClick();
+        nombreMeta = meta.Nombre ?? "";
+        idMeta = meta.Id;
+    }
+
+    private async Task EliminarMeta(Meta meta)
+    {
+        idMeta = meta.Id;
+
+        var confirmation = await (dialog ?? new()).ShowAsync(
+            title: "¿Está seguro?",
+            message1: $"Que desea eliminar el elemento {meta.Nombre}",
+            options
+        );
+
+        if (confirmation)
+        {
+            var response = await MetaService.EliminarMeta(idMeta);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await OnInitializedAsync();
+                tareas = new List<Tarea>();
+            }
+            else
+                Console.WriteLine("Error al eliminar la meta");
+        }
+    }
+    #endregion
+
+    #region Tareas
+    private async Task VerTareas(Meta meta)
+    {
+        idTareaActual = meta.Id;
+        tituloMeta = meta.Nombre;
+
+        mostrarBotonEditar = false;
+        mostrarBotonCompletar = false;
+        mostrarBotonEliminar = false;
+
+        tareas = await TareaService.ObtenerTareasPorMeta(meta.Id);
+    }
+
+    private void OnCheckboxChanged(Tarea tarea, ChangeEventArgs e)
+    {
+        foreach (var t in tareas)
+        {
+            if (t.Id == tarea.Id)
+            {
+                t.EstaSeleccionada = Convert.ToBoolean(e.Value);    
+            }
+        }
+
+        var tareasSeleccionadas = tareas.Where(t => t.EstaSeleccionada == true).ToList();
+
+        if (tareasSeleccionadas.Count == 0)
+        {
+            mostrarBotonEditar = false;
+            mostrarBotonCompletar = false;
+            mostrarBotonEliminar = false;
+        }
+        if (tareasSeleccionadas.Count == 1)
+        {
+            mostrarBotonEditar = true;
+            mostrarBotonCompletar = true;
+            mostrarBotonEliminar = true;
+        }
+        else if (tareasSeleccionadas.Count > 1)
+        {
+            mostrarBotonEditar = false;
+            mostrarBotonCompletar = true;
+            mostrarBotonEliminar = true;
+        }
+    }
+
+    private async Task GuardarTarea(int idMeta)
+    {
+        if (editarTarea)
+        {
+            HttpResponseMessage response = await TareaService.EditarTarea(new()
+                {
+                    Id = idTareaActual,
+                    Nombre = nombreTarea,
+                    IdMeta = idMeta
+                });
+
+            if (response.IsSuccessStatusCode)
+            {
+                await CerrarGuardarTarea();
+                tareas = await TareaService.ObtenerTareasPorMeta(idMeta);
+            }
+            else
+            {
+                await (dialog ?? new()).ShowAsync(
+                    title: "Error",
+                    message1: $"La tarea {nombreTarea} ya existe",
+                    options
+                );
+            }
+        }
+        else
+        {
+            HttpResponseMessage response = await TareaService.GuardarTarea(new()
+            {
+                Nombre = nombreTarea,
+                IdMeta = idMeta
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                await CerrarGuardarTarea();
+                metas = await MetaService.ObtenerMetas();
+                tareas = await TareaService.ObtenerTareasPorMeta(idMeta);
+            }
+            else
+            {
+                await (dialog ?? new()).ShowAsync(
+                    title: "Error",
+                    message1: $"La tarea {nombreTarea} ya existe",
+                    options
+                );
+            }
+        }
+    }
+
+    private async Task EditarTareasSeleccionadas()
+    {
+        var tareaSeleccionada = tareas.FirstOrDefault(t => t.EstaSeleccionada);
+        editarTarea = true;
+        await AbrirGuardarTarea();
+        nombreTarea = (tareaSeleccionada ?? new()).Nombre ?? "";
+        idMeta = (tareaSeleccionada ?? new()).IdMeta;
+    }
+
+    private async Task EliminarTareasSeleccionadas()
+    {
+        var confirmation = await (dialog ?? new()).ShowAsync(
+            title: "¿Está seguro?",
+            message1: "Que desea eliminar los elementos seleccionados",
+            options
+        );
+
+        if (confirmation)
+        {
+            var tareasSeleccionadas = tareas.Where(t => t.EstaSeleccionada).ToList();
+            var idMeta = tareasSeleccionadas.Select(ts => ts.IdMeta).FirstOrDefault();
+
+            if (tareasSeleccionadas.Any())
+            {
+                var response = await TareaService.EliminarTareas(tareasSeleccionadas);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    metas = await MetaService.ObtenerMetas();
+                    tareas = await TareaService.ObtenerTareasPorMeta(idMeta);
+                }
+            }
+        }
+    }
+
+    private async Task CompletarTareasSeleccionadas()
+    {
+        var tareasSeleccionadas = tareas.Where(t => t.EstaSeleccionada).ToList();
+        var idMeta = tareasSeleccionadas.Select(ts => ts.IdMeta).FirstOrDefault();
+
+        if (tareasSeleccionadas.Any())
+        {
+            var response = await TareaService.CompletarTareas(tareasSeleccionadas);
+
+            if (response.IsSuccessStatusCode)
+            {
+                tareas = await TareaService.ObtenerTareasPorMeta(idMeta);
+                metas = await MetaService.ObtenerMetas();
+            }
+        }
+    }
+    #endregion
+}
+

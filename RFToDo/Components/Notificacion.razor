@@ -1,0 +1,25 @@
+﻿<div>
+    @if (TipoNotificacion == "Exito")
+    {
+        <div>
+            Operación realizada con éxito
+        </div>  
+    }
+    else if (TipoNotificacion == "Info")
+    {
+        <div>
+            Que desea eliminar el elemento @Nombre
+        </div>
+    }
+    else if(TipoNotificacion == "Error")
+    {
+        <div>
+            Ocurrió un error, contacte al administrador del sistema
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string? TipoNotificacion { get; set; }
+    [Parameter] public string? Nombre { get; set; }
+}
